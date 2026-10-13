@@ -1,0 +1,185 @@
+#include <iostream>
+#include <string>
+#include <ctime>
+#include <cmath>
+#include <algorithm>
+#include <iomanip>
+
+using namespace std;
+
+class ParkingSlot {
+public:
+    int slotNumber;
+    bool occupied;
+    string vehicleNumber;
+    string vehicleType;
+    time_t entryTime;
+
+    ParkingSlot(int number) {
+        slotNumber = number;
+        occupied = false;
+        vehicleNumber = "";
+        vehicleType = "";
+        entryTime = 0;
+    }
+
+    void parkVehicle(string number, string type) {
+        occupied = true;
+        vehicleNumber = number;
+        vehicleType = type;
+        entryTime = time(nullptr); // Record current Unix timestamp
+    }
+
+    double removeVehicle() {
+        time_t exitTime = time(nullptr);
+        
+        // Calculate parking duration in seconds, then convert to hours
+        double diff = difftime(exitTime, entryTime);
+        double hours = max(1.0, ceil(diff / 3600.0));
+
+        // Determine rate based on vehicle type
+        double rate = 40.0;
+        string normalizedType = vehicleType;
+        transform(normalizedType.begin(), normalizedType.end(), normalizedType.begin(), ::tolower);
+        
+        if (normalizedType == "bike") {
+            rate = 20.0;
+        } else {
+            rate = 40.0;
+        }
+
+        double fee = hours * rate;
+
+        // Reset slot
+        occupied = false;
+        vehicleNumber = "";
+        vehicleType = "";
+        entryTime = 0;
+
+        return fee;
+    }
+};
+
+class SmartParkingSystem {
+private:
+    static const int TOTAL_SLOTS = 10;
+    ParkingSlot* slots[TOTAL_SLOTS];
+
+public:
+    SmartParkingSystem() {
+        for (int i = 0; i < TOTAL_SLOTS; i++) {
+            slots[i] = new ParkingSlot(i + 1);
+        }
+    }
+
+    ~SmartParkingSystem() {
+        for (int i = 0; i < TOTAL_SLOTS; i++) {
+            delete slots[i];
+        }
+    }
+
+    void parkVehicle(string number, string type) {
+        // Convert plate to uppercase for consistency
+        transform(number.begin(), number.end(), number.begin(), ::toupper);
+        
+        int availableIndex = -1;
+
+        // Find first available slot
+        for (int i = 0; i < TOTAL_SLOTS; i++) {
+            if (!slots[i]->occupied) {
+                availableIndex = i;
+                break;
+            }
+        }
+
+        if (availableIndex == -1) {
+            cout << "\nSorry! Parking is FULL.\n";
+            return;
+        }
+        
+        // Check for duplicates
+        for (int i = 0; i < TOTAL_SLOTS; i++) {
+            if (slots[i]->occupied && slots[i]->vehicleNumber == number) {
+                cout << "\nError: Vehicle " << number << " is already parked in Slot " << slots[i]->slotNumber << "\n";
+                return;
+            }
+        }
+
+        slots[availableIndex]->parkVehicle(number, type);
+
+        cout << "----------------------------------------\n";
+        cout << "Vehicle parked successfully!\n";
+        cout << "Assigned Parking Slot: " << slots[availableIndex]->slotNumber << "\n";
+        cout << "Plate: " << number << " | Type: " << type << "\n";
+        cout << "----------------------------------------\n";
+    }
+
+    void removeVehicleByPlate(string number) {
+        transform(number.begin(), number.end(), number.begin(), ::toupper);
+
+        for (int i = 0; i < TOTAL_SLOTS; i++) {
+            if (slots[i]->occupied && slots[i]->vehicleNumber == number) {
+                int slotNum = slots[i]->slotNumber;
+                string type = slots[i]->vehicleType;
+                
+                double fee = slots[i]->removeVehicle();
+
+                cout << "========================================\n";
+                cout << "Vehicle removed successfully!\n";
+                cout << "Parking Slot: " << slotNum << "\n";
+                cout << "Vehicle Number: " << number << " (" << type << ")\n";
+                cout << fixed << setprecision(2);
+                cout << "Parking Fee: Rs. " << fee << "\n";
+                cout << "========================================\n";
+                return;
+            }
+        }
+        cout << "\nVehicle not found! (" << number << ")\n";
+    }
+};
+
+int main() {
+    SmartParkingSystem parking;
+    int choice;
+    string plate, type;
+
+    cout << "========================================\n";
+    cout << "       SMART PARKING SLOT SYSTEM        \n";
+    cout << "========================================\n";
+    cout << "Ready. 10 Parking Slots Online.\n";
+
+    while (true) {
+        cout << "\n[1] Park Vehicle  [2] Checkout Vehicle  [3] Exit\n";
+        cout << "Enter command: ";
+        if (!(cin >> choice)) {
+            break; 
+        }
+
+        switch (choice) {
+            case 1:
+                cout << "Enter Vehicle License Number: ";
+                cin >> ws;
+                getline(cin, plate);
+                cout << "Enter Vehicle Type (Bike/Car): ";
+                cin >> type;
+                parking.parkVehicle(plate, type);
+                break;
+
+            case 2:
+                cout << "Enter Vehicle License Number to Checkout: ";
+                cin >> ws;
+                getline(cin, plate);
+                parking.removeVehicleByPlate(plate);
+                break;
+
+            case 3:
+                cout << "Shutting down terminal...\n";
+                return 0;
+
+            default:
+                cout << "Invalid selection. Try again.\n";
+        }
+    }
+
+    return 0;
+}
